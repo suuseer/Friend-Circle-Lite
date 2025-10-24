@@ -25,6 +25,14 @@ def fetch_and_process_data(json_url: str, specific_RSS: list = None, count: int 
     if specific_RSS is None:
         specific_RSS = []
 
+    # 确保temp目录存在
+    if cache_file:
+        import os
+        cache_dir = os.path.dirname(cache_file)
+        if cache_dir and not os.path.exists(cache_dir):
+            os.makedirs(cache_dir, exist_ok=True)
+            logging.info(f"创建缓存目录: {cache_dir}")
+
     # 1. 加载缓存
     cache_list = load_cache(cache_file)
 
@@ -47,10 +55,29 @@ def fetch_and_process_data(json_url: str, specific_RSS: list = None, count: int 
     session = requests.Session()
     try:
         response = session.get(json_url, headers=HEADERS_JSON, timeout=timeout)
+        response.raise_for_status()  # 检查HTTP状态码
+        
+        # 尝试设置正确的编码
+        if response.encoding is None or response.encoding == 'ISO-8859-1':
+            response.encoding = 'utf-8'
+        
+        # 记录响应信息用于调试
+        logging.info(f"获取JSON成功，状态码: {response.status_code}, 编码: {response.encoding}")
+        logging.info(f"响应内容前200字符: {response.text[:200]}")
+        
         friends_data = response.json()
+        logging.info(f"JSON解析成功，包含 {len(friends_data.get('friends', []))} 个友链")
+        
+    except requests.exceptions.RequestException as e:
+        logging.error(f"网络请求失败：{json_url} ：{e}", exc_info=True)
+        return None, []
+    except ValueError as e:
+        logging.error(f"JSON解析失败：{json_url} ：{e}", exc_info=True)
+        logging.error(f"响应内容: {response.text[:500]}")
+        return None, []
     except Exception as e:
-        logging.error(f"无法获取链接：{json_url} ：{e}", exc_info=True)
-        return None
+        logging.error(f"未知错误：{json_url} ：{e}", exc_info=True)
+        return None, []
 
     friends = friends_data.get('friends', [])
     total_friends = len(friends)

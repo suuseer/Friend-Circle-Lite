@@ -27,6 +27,10 @@ config = load_config("./conf.yaml")
 if config["spider_settings"]["enable"]:
     
     logging.info("✅ 爬虫已启用")
+    
+    # 确保temp目录存在
+    os.makedirs("./temp", exist_ok=True)
+    
     json_url = config['spider_settings']['json_url']
     article_count = config['spider_settings']['article_count']
     specific_rss = config['specific_RSS']
@@ -38,6 +42,11 @@ if config["spider_settings"]["enable"]:
         count           = article_count,        # 获取每个博客的最大文章数。
         cache_file      = "./temp/cache.json"   # 缓存文件路径。
     )
+
+    # 检查是否成功获取数据
+    if result is None:
+        logging.error("❌ 获取友链数据失败，程序退出")
+        sys.exit(1)
 
     if config["spider_settings"]["merge_result"]["enable"]:
 
